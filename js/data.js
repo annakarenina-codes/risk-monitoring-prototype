@@ -3,9 +3,20 @@
  * Everything here is made up. Edit freely; bump `version` so browsers that
  * already saved older data reset to this seed on their next load.
  *
- * Floor plans use a simple local grid: x runs 0–100, y runs 0–60 (roughly metres).
- * In the real system each site would be georeferenced so phone coordinates can be
- * converted into this grid.
+ * Each site has its own local grid in metres: x runs 0 → size.w, y runs 0 → size.d.
+ * In 3D, x stays x and y becomes depth (z), 1 unit = 1 metre. In the real system each
+ * site would be georeferenced so phone coordinates can be converted into this grid.
+ *
+ * Rooms are rectangles. Doors are gaps in a room's wall:
+ *   { side: 'n' | 's' | 'e' | 'w', at: metres from the wall's start (left or top), width }
+ * A door on a wall two rooms share opens it for both.
+ *
+ * Roads and parking areas are rectangles too: { id, x, y, w, h }. A parking area also has
+ * { name, kind: 'loading' | 'unloading' | 'any', entry: 'n' | 's' | 'e' | 'w' }. Trucks drive
+ * along the roads and back into a 4 m slot, entering from the `entry` side.
+ *
+ * The gate: { name, x, y, width, rotation } where rotation 0 runs left–right and 90 runs
+ * up–down. Drivers check in there. (Older saved data stored it as [x, y]; RMS.geo.gate() reads both.)
  */
 window.RMS = window.RMS || {};
 
@@ -14,41 +25,61 @@ window.RMS = window.RMS || {};
   const min = 60 * 1000;
 
   RMS.SEED = {
-    version: 3,
+    version: 7,
     settings: {
       // Open question for the client: when someone is in a private space, should the
       // dashboard show nothing (false) or their last position before entering (true)?
       showLastKnownWhenPaused: false,
-      // How long the demo drive between warehouses takes, in seconds.
-      transitSeconds: 45,
     },
 
     sites: [
       {
         id: 'WH-01', name: 'Warehouse 1', area: 'North Harbor',
         lat: 14.6095, lng: 120.9605,
-        gate: [8, 50],
+        size: { w: 100, d: 80 },
+        wallHeight: 4,
+        outline: { x: 16, y: 4, w: 80, h: 50 },
+        gate: { name: 'Main gate', x: 20, y: 80, width: 8, rotation: 0 },
+        roads: [
+          { id: 'RD1', x: 4, y: 69, w: 92, h: 6 },
+          { id: 'RD2', x: 16, y: 75, w: 8, h: 5 },
+        ],
+        parking: [
+          { id: 'PK1', name: 'Unloading dock', kind: 'unloading', entry: 's', x: 18, y: 55, w: 24, h: 12 },
+          { id: 'PK2', name: 'Loading dock', kind: 'loading', entry: 's', x: 44, y: 55, w: 24, h: 12 },
+          { id: 'PK3', name: 'Yard parking', kind: 'any', entry: 's', x: 72, y: 56, w: 20, h: 11 },
+        ],
         rooms: [
-          { name: 'Storage hall', x: 16, y: 4, w: 52, h: 34 },
-          { name: 'Loading bays', x: 16, y: 38, w: 52, h: 16 },
-          { name: 'Office', x: 70, y: 4, w: 26, h: 18 },
-          { name: 'Comfort rooms', x: 70, y: 22, w: 12, h: 12 },
-          { name: 'Clinic', x: 82, y: 22, w: 14, h: 12 },
-          { name: 'Break room', x: 70, y: 34, w: 26, h: 20 },
-          { name: 'Guard post', x: 2, y: 44, w: 12, h: 12 },
+          { id: 'R1', name: 'Storage hall', x: 16, y: 4, w: 52, h: 34, doors: [{ side: 's', at: 20, width: 6 }, { side: 'e', at: 26, width: 3 }] },
+          { id: 'R2', name: 'Loading bays', x: 16, y: 38, w: 52, h: 16, doors: [{ side: 's', at: 8, width: 8 }, { side: 's', at: 30, width: 8 }] },
+          { id: 'R3', name: 'Office', x: 70, y: 4, w: 26, h: 18, doors: [{ side: 'w', at: 12, width: 2 }] },
+          { id: 'R4', name: 'Comfort rooms', x: 70, y: 22, w: 12, h: 12, doors: [{ side: 'w', at: 6, width: 2 }] },
+          { id: 'R5', name: 'Clinic', x: 82, y: 22, w: 14, h: 12, doors: [{ side: 's', at: 5, width: 2 }] },
+          { id: 'R6', name: 'Break room', x: 70, y: 34, w: 26, h: 20, doors: [{ side: 'w', at: 4, width: 3 }] },
+          { id: 'R7', name: 'Guard post', x: 2, y: 44, w: 12, h: 12, doors: [{ side: 'e', at: 4, width: 2 }] },
         ],
       },
       {
         id: 'WH-02', name: 'Warehouse 2', area: 'Valenzuela',
         lat: 14.7004, lng: 120.9831,
-        gate: [92, 50],
+        size: { w: 100, d: 80 },
+        wallHeight: 4,
+        outline: { x: 4, y: 4, w: 92, h: 48 },
+        gate: { name: 'Main gate', x: 80, y: 80, width: 8, rotation: 0 },
+        roads: [
+          { id: 'RD1', x: 4, y: 67, w: 92, h: 6 },
+          { id: 'RD2', x: 76, y: 73, w: 8, h: 7 },
+        ],
+        parking: [
+          { id: 'PK1', name: 'Truck dock', kind: 'any', entry: 's', x: 8, y: 53, w: 48, h: 12 },
+        ],
         rooms: [
-          { name: 'Cold storage', x: 4, y: 4, w: 30, h: 30 },
-          { name: 'Dry storage', x: 34, y: 4, w: 40, h: 30 },
-          { name: 'Unloading bays', x: 4, y: 34, w: 70, h: 18 },
-          { name: 'Comfort rooms', x: 76, y: 4, w: 20, h: 12 },
-          { name: 'Office', x: 76, y: 16, w: 20, h: 18 },
-          { name: 'Guard post', x: 86, y: 44, w: 12, h: 12 },
+          { id: 'R1', name: 'Cold storage', x: 4, y: 4, w: 30, h: 30, doors: [{ side: 's', at: 12, width: 4 }] },
+          { id: 'R2', name: 'Dry storage', x: 34, y: 4, w: 40, h: 30, doors: [{ side: 's', at: 16, width: 6 }] },
+          { id: 'R3', name: 'Unloading bays', x: 4, y: 34, w: 70, h: 18, doors: [{ side: 's', at: 10, width: 8 }, { side: 's', at: 40, width: 8 }] },
+          { id: 'R4', name: 'Comfort rooms', x: 76, y: 4, w: 20, h: 12, doors: [{ side: 'w', at: 5, width: 2 }] },
+          { id: 'R5', name: 'Office', x: 76, y: 16, w: 20, h: 18, doors: [{ side: 'w', at: 8, width: 2 }] },
+          { id: 'R6', name: 'Guard post', x: 86, y: 53, w: 10, h: 6, doors: [{ side: 'w', at: 2, width: 2 }] },
         ],
       },
     ],
@@ -68,37 +99,83 @@ window.RMS = window.RMS || {};
      * People with `sim` move on their own (computed from the clock, so every open tab
      * agrees without anyone saving positions). People without `sim` are moved from
      * the phone demo page, and their `live` record is what their phone last sent.
-     * Path points are [x, y] or [x, y, secondsToWait].
+     *
+     * Path points are [x, y], [x, y, secondsToWait] or [x, y, secondsToWait, 'Activity'].
+     * The activity is the person's status while they are at that point or heading to it
+     * ("Picking", "On break"...). Phone users set their status on the phone instead, and
+     * drivers' status comes from their trip phase.
      */
     people: [
+      // Warehouse 1
       { id: 'P01', name: 'Maria Santos', role: 'employee', siteId: 'WH-01',
-        sim: { speed: 3, offset: 0, path: [[24, 12], [44, 30, 3], [66, 30], [76, 28, 8], [66, 30], [80, 12, 5], [44, 12, 3]] } },
+        sim: { speed: 3, offset: 0, path: [[24, 12, 6, 'Picking'], [44, 30, 4, 'Packing'], [66, 30], [76, 28, 8], [66, 30], [80, 12, 6, 'Admin work'], [44, 12, 4, 'Picking']] } },
       { id: 'P02', name: 'Ramon Cruz', role: 'employee', siteId: 'WH-01',
-        sim: { speed: 4, offset: 7, path: [[20, 44], [64, 44, 2], [64, 50], [20, 50, 2]] } },
+        sim: { speed: 4, offset: 7, path: [[20, 44, 4, 'Loading'], [64, 44, 4, 'Loading'], [64, 50, 2, 'Loading'], [20, 50, 4, 'Loading']] } },
       { id: 'P03', name: 'Liza Reyes', role: 'visitor', siteId: 'WH-01',
-        sim: { speed: 2.5, offset: 11, path: [[84, 10, 4], [84, 42, 6], [58, 14, 4], [84, 10]] } },
+        sim: { speed: 2.5, offset: 11, path: [[84, 10, 6, 'In a meeting'], [84, 42, 6, 'Waiting'], [58, 14, 4, 'Site tour'], [84, 10]] } },
+      { id: 'P08', name: 'Joy Mercado', role: 'employee', siteId: 'WH-01',
+        sim: { speed: 2, offset: 4, path: [[76, 8, 30, 'Admin work'], [86, 14, 20, 'Admin work'], [69, 17], [69, 40], [80, 44, 25, 'On break'], [69, 40], [69, 17]] } },
+      { id: 'P09', name: 'Dante Villareal', role: 'employee', siteId: 'WH-01',
+        sim: { speed: 3, offset: 15, path: [[24, 48, 15, 'Unloading'], [52, 48, 15, 'Loading'], [40, 42, 8, 'Checking stock']] } },
+      { id: 'P10', name: 'Kim Soriano', role: 'employee', siteId: 'WH-01',
+        sim: { speed: 3, offset: 9, path: [[30, 8, 12, 'Picking'], [30, 32, 12, 'Picking'], [46, 32, 10, 'Packing'], [44, 24, 10, 'Picking']] } },
+
+      // Warehouse 2
       { id: 'P05', name: 'Ana Lim', role: 'employee', siteId: 'WH-02',
-        sim: { speed: 3, offset: 3, path: [[10, 40], [30, 28, 4], [60, 20, 3], [84, 10, 6], [86, 24, 5], [50, 44]] } },
+        sim: { speed: 3, offset: 3, path: [[10, 40, 4, 'Unloading'], [30, 28, 4, 'Checking stock'], [60, 20, 3, 'Picking'], [84, 10, 6], [86, 24, 5, 'Admin work'], [50, 44, 4, 'Loading']] } },
       { id: 'P06', name: 'Carlo Mendoza', role: 'visitor', siteId: 'WH-02',
-        sim: { speed: 2, offset: 20, path: [[86, 26, 6], [60, 44, 4], [20, 20, 3], [86, 26]] } },
+        sim: { speed: 2, offset: 20, path: [[86, 26, 6, 'In a meeting'], [60, 44, 4, 'Site tour'], [20, 20, 3, 'Site tour'], [86, 26]] } },
+      { id: 'P12', name: 'Ben Aquino', role: 'employee', siteId: 'WH-02',
+        sim: { speed: 3, offset: 5, path: [[40, 10, 12, 'Picking'], [68, 10, 12, 'Picking'], [68, 28, 10, 'Packing'], [40, 28, 10, 'Picking']] } },
+      { id: 'P13', name: 'Rosa Dizon', role: 'employee', siteId: 'WH-02',
+        sim: { speed: 3, offset: 12, path: [[14, 46, 15, 'Loading'], [40, 44, 15, 'Staging pallets'], [64, 44, 10, 'Checking stock']] } },
+      { id: 'P14', name: 'Leo Castro', role: 'employee', siteId: 'WH-02',
+        sim: { speed: 2, offset: 2, path: [[82, 22, 30, 'Admin work'], [92, 28, 20, 'Admin work']] } },
+
+      // On the road between sites (not shown on the live monitor)
       { id: 'D02', name: 'Paolo Garcia', role: 'driver', siteId: null,
-        sim: { transit: { tripId: 'TRP-1039', from: 'WH-02', to: 'WH-01', startedAt: now, duration: 4 * min, loop: true } } },
+        sim: { transit: { tripId: 'TRP-1039', from: 'WH-02', to: 'WH-01', startedAt: now - 30 * min } } },
+
+      // Forklift operators: they ride their forklift, so their position is the forklift's.
+      { id: 'O01', name: 'Arnel Pascual', role: 'employee', siteId: 'WH-01', rides: 'FL-01' },
+      { id: 'O02', name: 'Grace Tan', role: 'employee', siteId: 'WH-01', rides: 'FL-02' },
+      { id: 'O03', name: 'Ruel Ocampo', role: 'employee', siteId: 'WH-02', rides: 'FL-03' },
+      { id: 'O04', name: 'Mae Flores', role: 'employee', siteId: 'WH-02', rides: 'FL-04' },
 
       // Controlled from phone.html
       { id: 'D01', name: 'Juan Bautista', role: 'driver', siteId: 'WH-01',
         live: { kind: 'site', siteId: 'WH-01', x: 8, y: 52, at: now } },
-      { id: 'E01', name: 'Bea Navarro', role: 'employee', siteId: 'WH-01',
+      { id: 'D03', name: 'Lito Ramos', role: 'driver', siteId: 'WH-02',
+        live: { kind: 'site', siteId: 'WH-02', x: 24, y: 55, at: now } },
+      { id: 'D04', name: 'Ely Santos', role: 'driver', siteId: 'WH-01',
+        live: { kind: 'site', siteId: 'WH-01', x: 34, y: 57, at: now } },
+      { id: 'E01', name: 'Bea Navarro', role: 'employee', siteId: 'WH-01', status: 'Checking stock',
         live: { kind: 'site', siteId: 'WH-01', x: 30, y: 30, at: now } },
-      { id: 'P04', name: 'Jun Dela Cruz', role: 'guard', siteId: 'WH-01',
+      { id: 'P04', name: 'Jun Dela Cruz', role: 'guard', siteId: 'WH-01', status: 'At gate post',
         live: { kind: 'site', siteId: 'WH-01', x: 8, y: 48, at: now } },
-      { id: 'P07', name: 'Mark Villanueva', role: 'guard', siteId: 'WH-02',
-        live: { kind: 'site', siteId: 'WH-02', x: 92, y: 48, at: now } },
+      { id: 'P07', name: 'Mark Villanueva', role: 'guard', siteId: 'WH-02', status: 'At gate post',
+        live: { kind: 'site', siteId: 'WH-02', x: 90, y: 56, at: now } },
+    ],
+
+    /*
+     * Equipment. A forklift with a `job` shuttles pallets between two rooms (by room id):
+     * it picks up just inside the dock doors of a loading/unloading bay, or along a row in a
+     * storage room, and finds its own way through the doors. Its operator is the person whose
+     * `rides` is the forklift's id.
+     */
+    assets: [
+      { id: 'FL-01', type: 'forklift', name: 'Forklift FL-01', siteId: 'WH-01', job: { from: 'R2', to: 'R1' }, speed: 2.5, offset: 0 },
+      { id: 'FL-02', type: 'forklift', name: 'Forklift FL-02', siteId: 'WH-01', job: { from: 'R1', to: 'R2' }, speed: 2.2, offset: 17 },
+      { id: 'FL-03', type: 'forklift', name: 'Forklift FL-03', siteId: 'WH-02', job: { from: 'R3', to: 'R2' }, speed: 2.5, offset: 5 },
+      { id: 'FL-04', type: 'forklift', name: 'Forklift FL-04', siteId: 'WH-02', job: { from: 'R3', to: 'R1' }, speed: 2.2, offset: 23 },
     ],
 
     /*
      * A trip is a list of phases (stops). At each stop the driver checks in at the gate
      * and the guard of that site approves before the driver can move on.
-     * phase.status: 'upcoming' → 'arrived' (waiting for guard) → 'approved' | 'rejected'
+     * phase.status: 'upcoming' -> 'arrived' (waiting for guard) -> 'approved' | 'rejected'
+     * On the live monitor a truck waits outside the gate while 'arrived', then backs up to a
+     * loading-bay door once 'approved', until the driver departs.
      */
     trips: [
       { id: 'TRP-1042', driverId: 'D01', vehicle: 'Truck NBC 4821', cargo: '18 pallets · dry goods',
@@ -113,12 +190,28 @@ window.RMS = window.RMS || {};
           { siteId: 'WH-02', label: 'Pickup', status: 'approved', arrivedAt: now - 38 * min, approvedAt: now - 31 * min, approvedBy: 'Mark Villanueva' },
           { siteId: 'WH-01', label: 'Drop-off', status: 'upcoming' },
         ] },
+      { id: 'TRP-1045', driverId: 'D03', vehicle: 'Truck ABK 3390', cargo: '12 pallets · frozen goods',
+        transit: null,
+        phases: [
+          { siteId: 'WH-02', label: 'Pickup', status: 'approved', arrivedAt: now - 14 * min, approvedAt: now - 9 * min, approvedBy: 'Mark Villanueva' },
+          { siteId: 'WH-01', label: 'Drop-off', status: 'upcoming' },
+        ] },
+      { id: 'TRP-1046', driverId: 'D04', vehicle: 'Truck NDA 7712', cargo: '20 pallets · beverages',
+        transit: null,
+        phases: [
+          { siteId: 'WH-01', label: 'Drop-off', status: 'approved', arrivedAt: now - 25 * min, approvedAt: now - 20 * min, approvedBy: 'Jun Dela Cruz' },
+          { siteId: 'WH-02', label: 'Pickup', status: 'upcoming' },
+        ] },
     ],
 
     // Activity log. Note: entering or leaving a private space is never logged,
     // because "who was in the comfort room and when" is itself sensitive.
     events: [
       { t: now - 4 * min, kind: 'checkin', text: 'Juan Bautista checked in at Warehouse 1 (TRP-1042 · Pickup). Waiting for guard.' },
+      { t: now - 9 * min, kind: 'approve', text: 'Mark Villanueva approved Pickup at Warehouse 2 for TRP-1045.' },
+      { t: now - 14 * min, kind: 'checkin', text: 'Lito Ramos checked in at Warehouse 2 (TRP-1045 · Pickup).' },
+      { t: now - 20 * min, kind: 'approve', text: 'Jun Dela Cruz approved Drop-off at Warehouse 1 for TRP-1046.' },
+      { t: now - 25 * min, kind: 'checkin', text: 'Ely Santos checked in at Warehouse 1 (TRP-1046 · Drop-off).' },
       { t: now - 31 * min, kind: 'approve', text: 'Mark Villanueva approved Pickup at Warehouse 2 for TRP-1039.' },
       { t: now - 38 * min, kind: 'checkin', text: 'Paolo Garcia checked in at Warehouse 2 (TRP-1039 · Pickup).' },
     ],

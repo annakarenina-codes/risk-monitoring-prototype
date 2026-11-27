@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sites & zones · Risk Management Monitoring System</title>
+  <title>Configure · Risk Management Monitoring System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/styles.css">
@@ -22,24 +22,29 @@
     <div class="grid-site">
       <section class="card plan-card">
         <div class="plan-toolbar" id="toolbar"></div>
-        <svg class="plan" id="plan" viewBox="-1 -1 102 62">
+        <svg class="plan editable" id="plan" viewBox="-1 -1 102 62">
           <g id="plan-base"></g>
           <g id="plan-people"></g>
         </svg>
         <div class="legend">
-          <span><i class="sw" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%224%22 height=%224%22><rect width=%224%22 height=%224%22 fill=%22%23efeaff%22/><path d=%22M0 4L4 0%22 stroke=%22%236a4ae0%22/></svg>');border:1px solid var(--violet)"></i>Private: location not shared</span>
-          <span><i class="sw" style="background:var(--red-50);border:1px dashed var(--red)"></i>Restricted: alert on visitors</span>
-          <span><i class="sw" style="background:var(--blue-50);border:1px solid var(--blue)"></i>General area</span>
-          <span><i class="sw" style="background:var(--blue);border-radius:50%;width:10px"></i>Employee</span>
-          <span><i class="sw" style="background:#e08a00;border-radius:50%;width:10px"></i>Visitor</span>
-          <span><i class="sw" style="background:#0e8f8f;border-radius:50%;width:10px"></i>Driver</span>
-          <span><i class="sw" style="background:#3b3f5c;border-radius:50%;width:10px"></i>Guard</span>
+          <span><i class="sw private"></i>Private: location not shared</span>
+          <span><i class="sw restricted"></i>Restricted: alert on visitors</span>
+          <span><i class="sw general"></i>General area</span>
+          <span><i class="sw door"></i>Door</span>
+          <span><i class="sw gate"></i>Gate</span>
+          <span><i class="sw road"></i>Road / parking</span>
+          <span><i class="sw dot employee"></i>Employee</span>
+          <span><i class="sw dot visitor"></i>Visitor</span>
+          <span><i class="sw dot driver"></i>Driver</span>
+          <span><i class="sw dot guard"></i>Guard</span>
         </div>
       </section>
 
       <aside class="card">
         <div class="tabs" style="padding-top:14px" id="side-tabs">
-          <button class="tab active" data-tab="zones">Zones</button>
+          <button class="tab active" data-tab="rooms">Layout</button>
+          <button class="tab" data-tab="zones">Zones</button>
+          <button class="tab" data-tab="site">Site</button>
           <button class="tab" data-tab="people">People here</button>
         </div>
         <div id="side"></div>
@@ -47,7 +52,7 @@
     </div>
   </main>
 
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="js/data.js"></script>
   <script src="js/store.js"></script>
   <script src="js/live.js"></script>

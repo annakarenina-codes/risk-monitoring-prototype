@@ -3,30 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Live map · Risk Management Monitoring System</title>
+  <title>Live monitor · Risk Management Monitoring System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <link rel="stylesheet" href="css/styles.css">
+  <!-- three.js add-ons import 'three' by name; this map points that at the CDN copy js/scene3d.js loads. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
-<body class="page-map">
+<body class="page-monitor">
   <header id="topbar"></header>
 
-  <div id="map"></div>
+  <div id="scene"></div>
 
-  <section class="overlay kpis" id="kpis"></section>
+  <section class="overlay top-left">
+    <div class="card site-switch" id="site-switch"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="alerts" id="alerts"></div>
+  </section>
 
-  <div class="overlay map-tools">
+  <div class="overlay view-tools">
     <button class="btn" id="zoom-in" title="Zoom in"><i data-lucide="plus"></i></button>
     <button class="btn" id="zoom-out" title="Zoom out"><i data-lucide="minus"></i></button>
-    <button class="btn" id="fit" title="Show all sites"><i data-lucide="scan"></i></button>
-    <button class="btn" id="tilt" title="Tilt the map (2.5D)"><i data-lucide="rotate-3d"></i></button>
+    <button class="btn" id="rotate" title="Turn slowly around the site"><i data-lucide="rotate-3d"></i></button>
+    <button class="btn" id="reset-view" title="Reset the view"><i data-lucide="scan"></i></button>
+    <button class="btn" id="labels" title="Show or hide name and status labels"><i data-lucide="tag"></i></button>
+    <button class="btn" id="names" title="Show or hide names on the labels (hover or click still shows them)"><i data-lucide="user-round"></i></button>
+    <button class="btn" id="roofs" title="Show or hide roofs"><i data-lucide="house"></i></button>
   </div>
 
   <aside class="overlay side">
+    <section class="card inspector" id="inspector" hidden></section>
+
     <section class="card people-card">
       <div class="card-head">
-        <h2><i data-lucide="users"></i>People</h2>
+        <h2><i data-lucide="users"></i>People here</h2>
         <span class="spacer"></span>
         <span class="muted" id="people-count"></span>
       </div>
@@ -36,6 +53,7 @@
         <button class="tab" data-role="visitor">Visitors</button>
         <button class="tab" data-role="driver">Drivers</button>
         <button class="tab" data-role="guard">Guards</button>
+        <button class="tab" data-role="equipment">Equipment</button>
       </div>
       <ul class="list scroll" id="people"></ul>
     </section>
@@ -46,23 +64,28 @@
     </section>
   </aside>
 
-  <section class="overlay trip-dock card">
-    <div class="card-head">
-      <h2><i data-lucide="route"></i>Trip tracking</h2>
-      <span class="spacer"></span>
-      <span id="trip-badge"></span>
-      <select class="input" id="trip-select" style="width:auto"></select>
+  <section class="overlay legend-dock card">
+    <div class="legend">
+      <span><i class="sw private"></i>Private: location not shared</span>
+      <span><i class="sw restricted"></i>Restricted: alert on visitors</span>
+      <span><i class="sw gate"></i>Gate</span>
+      <span><i class="sw road"></i>Road / parking</span>
+      <span><b class="count-sw">2 inside</b>Head count, no names</span>
+      <span><i class="sw dot employee"></i>Employee</span>
+      <span><i class="sw dot visitor"></i>Visitor</span>
+      <span><i class="sw dot driver"></i>Driver</span>
+      <span><i class="sw dot guard"></i>Guard</span>
+      <span><i class="sw forklift"></i>Forklift</span>
     </div>
-    <div class="card-body" id="trip-stepper"></div>
   </section>
 
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="js/data.js"></script>
   <script src="js/store.js"></script>
   <script src="js/live.js"></script>
   <script src="js/actions.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/scene3d.js"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@
           <small class="muted" style="display:block">${esc(x.trip.id)} · ${esc(x.phase.label)} at ${esc(x.site.name)} · checked in ${ui.ago(x.phase.arrivedAt)}</small>
         </span>
         <button class="btn btn-soft-red btn-sm" data-reject="${x.trip.id}" data-index="${x.index}"><i data-lucide="x"></i>Reject</button>
-        <button class="btn btn-green btn-sm" data-approve="${x.trip.id}" data-index="${x.index}"><i data-lucide="check"></i>Approve</button>
+        <button class="btn btn-sm" data-approve="${x.trip.id}" data-index="${x.index}"><i data-lucide="check"></i>Approve</button>
       </div>`).join('') || '<div class="empty">Nothing waiting. When a driver checks in at a gate it shows up here and on the guard\'s phone.</div>');
 
     swap('trips', state.trips.map((t) => {
@@ -54,10 +54,10 @@
   document.getElementById('approvals').addEventListener('click', (e) => {
     const a = e.target.closest('[data-approve]');
     const r = e.target.closest('[data-reject]');
-    if (a) actions.approve(a.dataset.approve, +a.dataset.index, 'Admin (desktop)');
+    if (a) actions.approve(a.dataset.approve, +a.dataset.index, `${ui.roleLabel()} (desktop)`);
     if (r) {
       const reason = prompt('Reason for rejecting (shown to the driver):', 'Documents incomplete');
-      if (reason !== null) actions.reject(r.dataset.reject, +r.dataset.index, 'Admin (desktop)', reason);
+      if (reason !== null) actions.reject(r.dataset.reject, +r.dataset.index, `${ui.roleLabel()} (desktop)`, reason);
     }
   });
 

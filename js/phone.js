@@ -10,7 +10,7 @@
   const { esc } = ui;
 
   const app = document.getElementById('app');
-  const phoneUsers = () => store.get().people.filter((p) => !p.sim);
+  const phoneUsers = () => store.get().people.filter((p) => !p.sim && !p.rides);
 
   let meId = new URLSearchParams(location.search).get('as') || localStorage.getItem('rms-phone-as') || 'D01';
   if (!phoneUsers().find((p) => p.id === meId)) meId = phoneUsers()[0].id;
@@ -22,7 +22,8 @@
     try { const d = JSON.parse(localStorage.getItem(deviceKey())); if (d) return d; } catch (e) { /* ignore */ }
     const me = person();
     const s = RMS.site(store.get(), me.live?.siteId || me.siteId || 'WH-01');
-    return { siteId: s.id, x: me.live?.x ?? s.gate[0], y: me.live?.y ?? s.gate[1] };
+    const [gx, gy] = RMS.geo.nearGate(s);
+    return { siteId: s.id, x: me.live?.x ?? gx, y: me.live?.y ?? gy };
   }
   function setDevicePos(pos) { localStorage.setItem(deviceKey(), JSON.stringify(pos)); }
 
@@ -35,7 +36,8 @@
   function report(pos) {
     if (!sharing()) return;
     const zone = RMS.geo.zoneAt(store.get().zones, pos.siteId, pos.x, pos.y);
-    if (zone?.type === 'private') actions.reportLocation(meId, { kind: 'paused', siteId: pos.siteId });
+    // Inside a private zone: which zone (for a head count), never where in it.
+    if (zone?.type === 'private') actions.reportLocation(meId, { kind: 'paused', siteId: pos.siteId, zoneId: zone.id });
     else actions.reportLocation(meId, { kind: 'site', siteId: pos.siteId, x: pos.x, y: pos.y });
   }
 
@@ -46,14 +48,38 @@
     const site = RMS.site(store.get(), pos.siteId);
     let cls, icon, title, text;
     if (!sharing()) { cls = 'off'; icon = 'map-pin-off'; title = 'Not sharing'; text = 'Your location is off. Turn it on while on duty.'; }
-    else if (liveRec.kind === 'transit') { cls = 'transit'; icon = 'navigation'; title = 'Sharing · on the road'; text = 'Your route is visible to operations.'; }
-    else if (zone?.type === 'private') { cls = 'paused'; icon = 'eye-off'; title = 'Paused · private space'; text = `You're in ${zone.name}. Nothing is being sent. Sharing resumes when you leave.`; }
+    else if (liveRec.kind === 'transit') {
+      const to = RMS.site(store.get(), liveRec.to);
+      cls = 'transit'; icon = 'truck'; title = `En route to ${to?.name ?? liveRec.to}`;
+      text = "Your location isn't tracked on the road. Operations only see where you're headed. Check in at the gate when you arrive.";
+    }
+    else if (zone?.type === 'private') { cls = 'paused'; icon = 'eye-off'; title = 'Paused · private space'; text = `You're in ${zone.name}. Your position isn't sent; the dashboard only counts how many people are in here. Sharing resumes when you leave.`; }
     else { cls = 'on'; icon = 'radio'; title = `Sharing with ${site?.name ?? ''}`; text = 'Operations can see where you are on site.'; }
     return `
       <section class="card share-card ${cls}">
         <span class="ico"><i data-lucide="${icon}"></i></span>
         <span style="flex:1"><b>${esc(title)}</b><small>${esc(text)}</small></span>
         <label class="switch" title="Share my location"><input type="checkbox" id="share" ${sharing() ? 'checked' : ''}><span></span></label>
+      </section>`;
+  }
+
+  // Statuses a phone user can pick. Drivers don't pick: their status is their trip phase.
+  const STATUS_OPTIONS = {
+    employee: ['On duty', 'Picking', 'Packing', 'Loading', 'Unloading', 'Checking stock', 'Admin work', 'On break'],
+    guard: ['At gate post', 'On patrol', 'On break'],
+  };
+
+  function statusCard(me) {
+    const opts = STATUS_OPTIONS[me.role];
+    if (!opts) return '';
+    const cur = me.status || opts[0];
+    return `
+      <section class="card">
+        <div class="card-head"><h2><i data-lucide="activity"></i>My status</h2></div>
+        <div class="card-body" style="display:grid;gap:6px">
+          <select class="input" id="my-status">${opts.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+          <small>Shown next to your name on the live monitor. Not shown while you're in a private space.</small>
+        </div>
       </section>`;
   }
 
@@ -69,7 +95,7 @@
           </select>
         </div>
         <div class="card-body">
-          <svg class="plan" id="mini" viewBox="-1 -1 102 62"><g id="mini-base"></g><g id="mini-me"></g></svg>
+          <svg class="plan" id="mini" viewBox="${plan.viewBox(RMS.site(store.get(), pos.siteId), store.get().zones)}"><g id="mini-base"></g><g id="mini-me"></g></svg>
           <small>Tap the plan to move (stands in for GPS / indoor positioning).</small>
         </div>
       </section>`;
@@ -83,21 +109,20 @@
     const ph = t.phases[i];
     let action = '';
     if (i === -1) {
-      action = `<div class="badge badge-green">Trip complete. Thank you!</div>`;
+      action = `<div class="badge badge-success">Trip complete. Thank you!</div>`;
     } else if (ph.status === 'arrived') {
       action = `<button class="btn btn-block" disabled><i data-lucide="hourglass"></i>Waiting for the guard…</button>`;
     } else if (ph.status === 'rejected') {
       action = `<p class="muted" style="margin:0 0 8px">Rejected: ${esc(ph.rejectedReason)}</p>
         <button class="btn btn-block" data-act="checkin"><i data-lucide="log-in"></i>Check in again</button>`;
     } else if (t.transit) {
-      const p = liveRec.kind === 'transit' ? liveRec.progress : 0;
-      const left = liveRec.kind === 'transit' ? Math.max(0, Math.ceil((liveRec.duration * (1 - p)) / 1000)) : 0;
+      // No tracking on the road, so the driver checks in whenever they reach the gate.
       const to = RMS.site(state, t.transit.to);
+      const left = liveRec.kind === 'transit' && liveRec.startedAt ? ` · left ${ui.clock(liveRec.startedAt)}` : '';
       action = `
         <div style="display:grid;gap:8px">
-          <div style="display:flex;justify-content:space-between"><small>To ${esc(to.name)}</small><small>${left ? `${left}s left` : 'Arrived'}</small></div>
-          <div class="progress"><i style="width:${Math.round(p * 100)}%"></i></div>
-          <button class="btn btn-block" data-act="checkin" ${p < 1 ? 'disabled' : ''}><i data-lucide="log-in"></i>Check in at ${esc(to.name)} gate</button>
+          <small>${ui.badge('En route', 'accent')} On the way to ${esc(to.name)}${left}</small>
+          <button class="btn btn-block" data-act="checkin"><i data-lucide="log-in"></i>I've arrived: check in at ${esc(to.name)} gate</button>
         </div>`;
     } else if (i === 0) {
       action = `<button class="btn btn-block" data-act="checkin"><i data-lucide="log-in"></i>Check in at ${esc(RMS.site(state, ph.siteId).name)} gate</button>`;
@@ -119,7 +144,7 @@
     const pend = RMS.trips.pending(store.get(), siteId);
     return `
       <section class="card">
-        <div class="card-head"><h2><i data-lucide="stamp"></i>At your gate</h2><span class="spacer"></span>${ui.badge(`${pend.length} waiting`, pend.length ? 'amber' : 'grey')}</div>
+        <div class="card-head"><h2><i data-lucide="stamp"></i>At your gate</h2><span class="spacer"></span>${ui.badge(`${pend.length} waiting`, pend.length ? 'warning' : 'grey')}</div>
         ${pend.map((x) => `
           <div class="card-body" style="display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px">
             <div style="display:flex;gap:10px;align-items:center">
@@ -129,7 +154,7 @@
             <small>${esc(x.trip.id)} · ${esc(x.phase.label)} · checked in ${ui.ago(x.phase.arrivedAt)}</small>
             <div style="display:flex;gap:8px">
               <button class="btn btn-soft-red" style="flex:1" data-reject="${x.trip.id}" data-index="${x.index}"><i data-lucide="x"></i>Reject</button>
-              <button class="btn btn-green" style="flex:1" data-approve="${x.trip.id}" data-index="${x.index}"><i data-lucide="check"></i>Approve</button>
+              <button class="btn" style="flex:1" data-approve="${x.trip.id}" data-index="${x.index}"><i data-lucide="check"></i>Approve</button>
             </div>
           </div>`).join('') || '<div class="empty">No drivers waiting.</div>'}
       </section>`;
@@ -149,6 +174,7 @@
         <i data-lucide="bell"></i>
       </div>
       ${shareCard(me, liveRec, pos)}
+      ${statusCard(me)}
       ${me.role === 'guard' ? guardCard(me) : ''}
       ${me.role === 'driver' ? driverCard(liveRec) : ''}
       ${inTransit ? '' : mapCard(pos)}`;
@@ -174,7 +200,7 @@
   app.addEventListener('pointerdown', (e) => {
     const svg = e.target.closest('#mini');
     if (!svg) return;
-    const [x, y] = plan.toPlan(svg, e);
+    const [x, y] = plan.toPlan(svg, e, RMS.site(store.get(), devicePos().siteId));
     const pos = { ...devicePos(), x, y };
     setDevicePos(pos);
     report(pos);
@@ -190,9 +216,11 @@
         actions.reportLocation(meId, { kind: 'offline' });
       }
     }
+    if (e.target.id === 'my-status') actions.setStatus(meId, e.target.value);
     if (e.target.id === 'site') {
       const s = RMS.site(store.get(), e.target.value);
-      const pos = { siteId: s.id, x: s.gate[0], y: s.gate[1] - 4 };
+      const [x, y] = RMS.geo.nearGate(s);
+      const pos = { siteId: s.id, x, y };
       setDevicePos(pos);
       report(pos);
     }
