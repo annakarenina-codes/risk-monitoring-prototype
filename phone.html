@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phone demo · Risk Management Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main class="page-phone">
+    <aside class="demo-controls card" style="padding:16px">
+      <h2>Phone demo</h2>
+      <p>This stands in for the iOS and Android app. Keep it open next to the dashboard: changes show up there live.</p>
+      <label class="field">Signed in as
+        <select class="input" id="as"></select>
+      </label>
+      <p><b>Employee / driver:</b> tap the floor plan to move. Walk into the comfort room and the dashboard loses you.</p>
+      <p><b>Driver:</b> check in at the gate, wait for the guard, then drive to the next warehouse.</p>
+      <p><b>Guard:</b> approve or reject drivers who checked in at your gate.</p>
+      <a class="btn btn-ghost" href="index.html" target="rms-dashboard"><i data-lucide="map"></i>Open dashboard</a>
+    </aside>
+
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-status">
+          <span id="phone-time"></span>
+          <span class="icons"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-medium"></i></span>
+        </div>
+        <div class="phone-app" id="app"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/plan.js"></script>
+  <script src="js/phone.js"></script>
+</body>
+</html>

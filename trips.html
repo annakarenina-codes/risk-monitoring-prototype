@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trips · Risk Management Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header id="topbar"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <h1>Trips</h1>
+      <span class="muted">Each stop is a phase. The guard at that site approves it before the driver moves on.</span>
+    </div>
+
+    <div class="trips-grid">
+      <section class="card">
+        <div class="card-head">
+          <h2><i data-lucide="stamp"></i>Waiting for guard approval</h2>
+          <span class="spacer"></span>
+          <span class="muted">Normally done by the guard on their phone; approving here is for the demo.</span>
+        </div>
+        <div id="approvals"></div>
+      </section>
+
+      <div id="trips" class="trips-grid"></div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/trips.js"></script>
+</body>
+</html>

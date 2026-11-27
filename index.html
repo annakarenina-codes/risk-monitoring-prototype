@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live map · Risk Management Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="page-map">
+  <header id="topbar"></header>
+
+  <div id="map"></div>
+
+  <section class="overlay kpis" id="kpis"></section>
+
+  <div class="overlay map-tools">
+    <button class="btn" id="zoom-in" title="Zoom in"><i data-lucide="plus"></i></button>
+    <button class="btn" id="zoom-out" title="Zoom out"><i data-lucide="minus"></i></button>
+    <button class="btn" id="fit" title="Show all sites"><i data-lucide="scan"></i></button>
+    <button class="btn" id="tilt" title="Tilt the map (2.5D)"><i data-lucide="rotate-3d"></i></button>
+  </div>
+
+  <aside class="overlay side">
+    <section class="card people-card">
+      <div class="card-head">
+        <h2><i data-lucide="users"></i>People</h2>
+        <span class="spacer"></span>
+        <span class="muted" id="people-count"></span>
+      </div>
+      <div class="tabs" id="people-tabs">
+        <button class="tab active" data-role="all">All</button>
+        <button class="tab" data-role="employee">Employees</button>
+        <button class="tab" data-role="visitor">Visitors</button>
+        <button class="tab" data-role="driver">Drivers</button>
+        <button class="tab" data-role="guard">Guards</button>
+      </div>
+      <ul class="list scroll" id="people"></ul>
+    </section>
+
+    <section class="card feed-card">
+      <div class="card-head"><h2><i data-lucide="activity"></i>Activity</h2></div>
+      <ul class="list scroll feed" id="feed"></ul>
+    </section>
+  </aside>
+
+  <section class="overlay trip-dock card">
+    <div class="card-head">
+      <h2><i data-lucide="route"></i>Trip tracking</h2>
+      <span class="spacer"></span>
+      <span id="trip-badge"></span>
+      <select class="input" id="trip-select" style="width:auto"></select>
+    </div>
+    <div class="card-body" id="trip-stepper"></div>
+  </section>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
