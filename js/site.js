@@ -1,13 +1,13 @@
 /*
  * Configure (site.html), superadmins only.
- * Set up a site's layout: rooms (rectangles with door gaps), the building outline, the gate,
+ * Set up a site's layout: rooms (rectangles with door gaps), buildings, the gate,
  * the site size and wall height, and zones. Every edit goes through RMS.config → RMS.store,
  * so other open tabs (and the 3D Monitor) update live. Everything snaps to a 1 m grid.
  */
 (function () {
   const { store, ui, plan, config, geo } = RMS;
   const { esc } = ui;
-  const { BUILDING, GATE } = plan;
+  const { GATE } = plan;
 
   ui.header('site');
   if (!ui.requireRole('superadmin')) return;
@@ -33,8 +33,8 @@
   const MIN = 2; // smallest room side, metres
   const site = () => RMS.site(store.get(), siteId);
   const siteZones = () => store.get().zones.filter((z) => z.siteId === siteId);
-  /** Roads and parking areas are selected like rooms, as 'road:<id>' / 'park:<id>'. */
-  const FEATURE = { 'road:': 'roads', 'park:': 'parking' };
+  /** Buildings, roads and parking areas are selected like rooms, as 'bldg:<id>' / 'road:<id>' / 'park:<id>'. */
+  const FEATURE = { 'bldg:': 'buildings', 'road:': 'roads', 'park:': 'parking' };
   const featureOf = (id) => {
     const pre = id && Object.keys(FEATURE).find((x) => id.startsWith(x));
     return pre ? { list: FEATURE[pre], id: id.slice(pre.length) } : null;
@@ -42,7 +42,6 @@
   const KIND_LABEL = { any: 'Any truck', loading: 'Loading', unloading: 'Unloading' };
 
   const rectOf = (id, s = site()) => {
-    if (id === BUILDING) return s.outline;
     const f = featureOf(id);
     if (f) return (s[f.list] || []).find((x) => x.id === f.id);
     if (id === GATE) return geo.gate(s);
@@ -72,7 +71,6 @@
     if (!drag || drag.type === 'zone-pt') return s;
     const c = structuredClone(s);
     if (drag.type === 'gate') c.gate = { ...geo.gate(s), x: drag.pos[0], y: drag.pos[1] };
-    else if (drag.id === BUILDING) c.outline = drag.rect;
     else Object.assign(rectOf(drag.id, c), drag.rect);
     return c;
   }
@@ -91,7 +89,7 @@
 
   function renderToolbar() {
     const el = document.getElementById('toolbar');
-    const room = selRoom && selRoom !== BUILDING ? rectOf(selRoom) : null;
+    const room = selRoom && !featureOf(selRoom) ? rectOf(selRoom) : null;
     const cancel = '<button class="btn btn-ghost btn-sm" id="cancel">Cancel</button>';
     const html = {
       'draw-zone': `
@@ -188,13 +186,14 @@
     const rotateButtons = `
       <button class="btn btn-soft btn-sm icon-btn" id="rotate-ccw" title="Rotate 90° counter-clockwise (Shift+R)"><i data-lucide="rotate-ccw"></i></button>
       <button class="btn btn-soft btn-sm icon-btn" id="rotate-cw" title="Rotate 90° clockwise (R)"><i data-lucide="rotate-cw"></i></button>`;
-    if (sel && selRoom === BUILDING) {
+    if (sel && featureOf(selRoom)?.list === 'buildings') {
       form = `
         <div class="zone-form">
-          <p class="muted" style="margin:0">The building's footprint: the floor slab the rooms sit on in 3D. Moving or removing it doesn't move or remove the rooms.</p>
+          <label class="field">Building name<input class="input" id="bldg-name" value="${esc(sel.name)}"></label>
+          <p class="muted" style="margin:0">A building's footprint: the floor slab and roof its rooms sit under in 3D. Moving or removing it doesn't move or remove the rooms.</p>
           ${sizeLine(sel)}
           <div style="display:flex;gap:8px">${rotateButtons}
-            <button class="btn btn-soft-red btn-sm" id="building-delete"><i data-lucide="trash-2"></i>Remove</button>
+            <button class="btn btn-soft-red btn-sm" id="feature-delete"><i data-lucide="trash-2"></i>Remove</button>
             <span class="spacer"></span><button class="btn btn-ghost btn-sm" id="room-done">Done</button></div>
         </div>`;
     } else if (sel && selRoom === GATE) {
@@ -268,7 +267,7 @@
     }
 
     const rows = [];
-    if (s.outline) rows.push({ id: BUILDING, name: 'Building outline', sub: `${s.outline.w} × ${s.outline.h} m · floor slab` });
+    (s.buildings || []).forEach((b) => rows.push({ id: `bldg:${b.id}`, name: b.name, sub: `Building · ${b.w} × ${b.h} m` }));
     const gate = geo.gate(s);
     if (gate) rows.push({ id: GATE, name: gate.name, sub: `Gate · ${gate.width} m wide · ${gate.rotation % 180 ? 'up–down' : 'left–right'}` });
     (s.roads || []).forEach((r, i) => rows.push({ id: `road:${r.id}`, name: `Road ${i + 1}`, sub: `Road · ${r.w} × ${r.h} m` }));
@@ -283,8 +282,8 @@
     }));
     const anyWarn = rows.some((r) => r.warn);
 
-    const heading = { [BUILDING]: 'Building', [GATE]: 'Gate' }[selRoom]
-      || (featureOf(selRoom) ? { roads: 'Road', parking: 'Parking area' }[featureOf(selRoom).list] : 'Edit room');
+    const heading = { [GATE]: 'Gate' }[selRoom]
+      || (featureOf(selRoom) ? { buildings: 'Building', roads: 'Road', parking: 'Parking area' }[featureOf(selRoom).list] : 'Edit room');
     sideEl.innerHTML = `
       ${paletteHtml()}
       <div class="card-head" style="padding-top:4px"><h2>${sel ? heading : 'Layout'}</h2><span class="spacer"></span><span class="muted">${s.rooms.length}</span></div>
@@ -305,19 +304,16 @@
     on('room-done', () => selectRoom(null));
     on('rotate-cw', () => rotateSelected(1));
     on('rotate-ccw', () => rotateSelected(-1));
-    on('building-delete', () => {
-      if (!confirm('Remove the building outline? The rooms stay; in 3D each room gets its own floor and roof.')) return;
-      selRoom = null;
-      config.updateSite(siteId, { outline: null });
-    });
-    if (selRoom === BUILDING) return;
     const feat = featureOf(selRoom);
     if (feat) {
       on('feature-delete', () => {
-        if (!confirm(`Delete this ${feat.list === 'roads' ? 'road' : 'parking area'}?`)) return;
+        const what = { buildings: `building "${sel.name}"? Its rooms stay; in 3D each gets its own floor and roof`, roads: 'road', parking: 'parking area' }[feat.list];
+        if (!confirm(`Remove this ${what}?`)) return;
         selRoom = null;
         config.deleteFeature(siteId, feat.list, feat.id);
       });
+      const bn = document.getElementById('bldg-name');
+      if (bn) bn.onchange = () => config.updateFeature(siteId, 'buildings', feat.id, { name: bn.value.trim() || 'Building' });
       const pn = document.getElementById('park-name');
       if (pn) pn.onchange = () => config.updateFeature(siteId, 'parking', feat.id, { name: pn.value.trim() || 'Parking' });
       const pk = document.getElementById('park-kind');
@@ -491,7 +487,7 @@
   /* ---------- "Add to site": ready-made rooms, zones, roads and parking ---------- */
 
   const TEMPLATES = [
-    { key: 'building', icon: 'building-2', label: 'Building outline', w: 40, h: 30, building: true },
+    { key: 'building', icon: 'building-2', label: 'Building', w: 40, h: 30, feature: 'buildings', extra: { name: 'New building' } },
     { key: 'room', icon: 'square', label: 'Room', name: 'Room', w: 10, h: 8, doors: [{ side: 's', at: 4, width: 2 }] },
     { key: 'storage', icon: 'warehouse', label: 'Storage room', name: 'Storage room', w: 24, h: 16, doors: [{ side: 's', at: 10, width: 4 }] },
     { key: 'bay', icon: 'package', label: 'Loading bay', name: 'Loading bay', w: 20, h: 10, doors: [{ side: 's', at: 3, width: 6 }, { side: 's', at: 11, width: 6 }, { side: 'n', at: 8, width: 4 }] },
@@ -533,23 +529,11 @@
   function addTemplate(key) {
     const t = TEMPLATES.find((x) => x.key === key);
     const s = site();
-    if (t.building) {
-      // One outline per site: if there is one, just select it.
-      if (s.outline) {
-        selRoom = BUILDING;
-        renderAll();
-        return flash('This site already has a building outline. It is selected now: move, resize or remove it.');
-      }
-      const [bx, by] = freeSpot(t.w, t.h, [...(s.roads || []), ...(s.parking || [])]);
-      config.updateSite(siteId, { outline: { x: bx, y: by, w: t.w, h: t.h } });
-      selRoom = BUILDING;
-      mode = 'view';
-      renderAll();
-      return flash('Added a building outline. Drag it under your rooms and resize it to fit.');
-    }
     const taken = [...s.rooms, ...(s.roads || []), ...(s.parking || [])];
     let avoid = taken;
-    if (t.feature) avoid = [...taken, ...(s.outline ? [s.outline] : [])]; // roads and parking go outside the building
+    const others = [...(s.roads || []), ...(s.parking || []), ...(s.buildings || [])];
+    if (t.feature === 'buildings') avoid = others; // a new building may go around existing rooms
+    else if (t.feature) avoid = [...taken, ...(s.buildings || [])]; // roads and parking go outside buildings
     if (t.zone) avoid = siteZones().map((z) => bboxOf(z.points));
     const [x, y] = freeSpot(t.w, t.h, avoid);
     const rect = { x, y, w: t.w, h: t.h };
@@ -564,7 +548,7 @@
     }
     if (t.feature) {
       const id = config.addFeature(siteId, t.feature, { ...rect, ...(t.extra || {}) });
-      selRoom = `${t.feature === 'roads' ? 'road' : 'park'}:${id}`;
+      selRoom = `${{ buildings: 'bldg', roads: 'road', parking: 'park' }[t.feature]}:${id}`;
     } else {
       selRoom = config.addRoom(siteId, { name: t.name, ...rect, doors: t.doors.map((d) => ({ ...d })) });
       if (t.privateZone) {
@@ -577,16 +561,12 @@
     flash(`Added ${t.label.toLowerCase()}. Drag it into place, drag the corners to resize, press R to rotate.`);
   }
 
-  /** Turn the selected room (or the building outline) 90°: dir 1 = clockwise, -1 = counter-clockwise. */
+  /** Turn the selected room, building, road or parking area 90°: dir 1 = clockwise, -1 = counter-clockwise. */
   function rotateSelected(dir) {
     if (!selRoom || !rectOf(selRoom)) return;
     if (selRoom === GATE) {
       const g = geo.gate(site());
       config.updateGate(siteId, { rotation: (g.rotation + (dir > 0 ? 90 : 270)) % 360 });
-    } else if (selRoom === BUILDING) {
-      const r = geo.rotateRoom(site().outline, dir, site());
-      if (!r) return flash("Turned, the building wouldn't fit in the site. Make the site bigger in the Site tab first.");
-      config.updateSite(siteId, { outline: { x: r.x, y: r.y, w: r.w, h: r.h } });
     } else if (featureOf(selRoom)) {
       const f = featureOf(selRoom);
       const cur = rectOf(selRoom);
@@ -606,7 +586,7 @@
   /** Add a 2 m door on the selected room's wall nearest to the click (within 2 m). */
   function addDoorAt([px, py]) {
     const r = rectOf(selRoom);
-    if (!r || selRoom === BUILDING || selRoom === GATE || featureOf(selRoom)) return;
+    if (!r || selRoom === GATE || featureOf(selRoom)) return;
     const inX = px >= r.x && px <= r.x + r.w;
     const inY = py >= r.y && py <= r.y + r.h;
     const best = [
@@ -721,7 +701,6 @@
     if (!dr.moved) return renderBase();
     if (dr.type === 'gate') config.updateGate(siteId, { x: dr.pos[0], y: dr.pos[1] });
     else if (dr.type === 'zone-pt') config.updateZone(dr.zoneId, { points: dr.points });
-    else if (dr.id === BUILDING) config.updateSite(siteId, { outline: dr.rect });
     else if (featureOf(dr.id)) config.updateFeature(siteId, featureOf(dr.id).list, featureOf(dr.id).id, dr.rect);
     else config.updateRoom(siteId, dr.id, dr.rect);
   });

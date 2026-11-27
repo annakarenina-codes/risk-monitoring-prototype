@@ -121,7 +121,7 @@ window.RMS = window.RMS || {};
   const roomOf = (s, siteId, roomId) => siteOf(s, siteId).rooms.find((r) => r.id === roomId);
 
   RMS.config = {
-    /** patch: any of { size, wallHeight, outline } */
+    /** patch: any of { size, wallHeight } */
     updateSite(siteId, patch) {
       store.update((s) => Object.assign(siteOf(s, siteId), patch));
     },
@@ -135,10 +135,10 @@ window.RMS = window.RMS || {};
     },
 
     /**
-     * Roads and parking areas: list is 'roads' or 'parking'. add() returns the new id.
+     * Buildings, roads and parking areas: list is 'buildings', 'roads' or 'parking'. add() returns the new id.
      */
     addFeature(siteId, list, item) {
-      const id = (list === 'roads' ? 'RD' : 'PK') + Date.now().toString(36);
+      const id = ({ buildings: 'B', roads: 'RD', parking: 'PK' }[list] || 'F') + Date.now().toString(36);
       store.update((s) => { const site = siteOf(s, siteId); site[list] = [...(site[list] || []), { id, ...item }]; });
       return id;
     },

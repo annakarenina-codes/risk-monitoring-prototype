@@ -70,7 +70,7 @@ window.RMS = window.RMS || {};
       const ys = [];
       const add = (x, y) => { xs.push(x); ys.push(y); };
       const rect = (r) => { add(r.x, r.y); add(r.x + r.w, r.y + r.h); };
-      if (site.outline) rect(site.outline);
+      (site.buildings || []).forEach(rect);
       site.rooms.forEach(rect);
       zones.filter((z) => z.siteId === site.id).forEach((z) => z.points.forEach(([x, y]) => add(x, y)));
       const g = geo.gate(site);
@@ -388,7 +388,7 @@ window.RMS = window.RMS || {};
   const workFor = (label) => (/drop|unload|deliver/i.test(label) ? 'Unloading' : 'Loading');
 
   /** A driver's status is their trip phase. */
-  function driverStatus(state, p) {
+  function driverStatus(state, p, now) {
     const trips = state.trips.filter((t) => t.driverId === p.id);
     const t = trips.find((x) => currentPhase(x) !== -1) || trips[trips.length - 1];
     if (!t) return statusOf('On site', 'grey');
@@ -399,14 +399,18 @@ window.RMS = window.RMS || {};
     if (ph.status === 'arrived') return { ...base, ...statusOf(`${ph.label} · waiting for guard`, 'warning') };
     if (ph.status === 'rejected') return { ...base, ...statusOf(`${ph.label} · rejected at gate`, 'danger') };
     if (t.transit) return { ...base, ...statusOf('En route', 'accent') };
-    if (i > 0) return { ...base, ...statusOf(`${workFor(t.phases[i - 1].label)} at bay`, 'success') };
+    if (i > 0) {
+      // Approved here: say what the truck is doing and where ("Driving to Loading dock", "Loading at Loading dock").
+      const truck = p.siteId && trucksAt(state, p.siteId, now).find((x) => x.id === t.id);
+      return { ...base, ...(truck ? truck.status : statusOf(`${workFor(t.phases[i - 1].label)} at bay`, 'success')) };
+    }
     return { ...base, ...statusOf(`${ph.label} · not checked in`, 'grey') };
   }
 
   /** { text, tone } for a person who is visible on site. Drivers may also carry tripId. */
-  function personStatus(state, p, activity) {
+  function personStatus(state, p, activity, now = Date.now()) {
     if (p.rides) return statusOf(`Driving ${p.rides}`, 'accent');
-    if (p.role === 'driver') return driverStatus(state, p);
+    if (p.role === 'driver') return driverStatus(state, p, now);
     if (p.sim) return statusOf(activity || 'Walking');
     return statusOf(p.status || DEFAULT_STATUS[p.role] || 'On duty');
   }
@@ -453,7 +457,7 @@ window.RMS = window.RMS || {};
             ...base, ...r, zone,
             room: s ? geo.roomAt(s, r.x, r.y) : '',
             alert: zone?.type === 'restricted' && p.role === 'visitor',
-            status: personStatus(state, p, r.activity),
+            status: personStatus(state, p, r.activity, now),
           };
         }
       }

@@ -20,7 +20,7 @@
 <body class="page-monitor">
   <header id="topbar"></header>
 
-  <div id="scene"></div>
+  <div id="scene"><div class="scene-fallback"><span class="spinner"></span>Loading the 3D view…</div></div>
 
   <section class="overlay top-left">
     <div class="card site-switch" id="site-switch"></div>
@@ -33,6 +33,7 @@
     <button class="btn" id="zoom-out" title="Zoom out"><i data-lucide="minus"></i></button>
     <button class="btn" id="rotate" title="Turn slowly around the site"><i data-lucide="rotate-3d"></i></button>
     <button class="btn" id="reset-view" title="Reset the view"><i data-lucide="scan"></i></button>
+    <span class="tool-sep" aria-hidden="true"></span>
     <button class="btn" id="labels" title="Show or hide name and status labels"><i data-lucide="tag"></i></button>
     <button class="btn" id="names" title="Show or hide names on the labels (hover or click still shows them)"><i data-lucide="user-round"></i></button>
     <button class="btn" id="roofs" title="Show or hide roofs"><i data-lucide="house"></i></button>
@@ -64,7 +65,8 @@
     </section>
   </aside>
 
-  <section class="overlay legend-dock card">
+  <section class="overlay legend-dock card" id="legend-dock">
+    <button class="legend-toggle" id="legend-toggle" title="Show or hide the legend"><i data-lucide="list"></i>Legend<i data-lucide="chevron-up" class="chev"></i></button>
     <div class="legend">
       <span><i class="sw private"></i>Private: location not shared</span>
       <span><i class="sw restricted"></i>Restricted: alert on visitors</span>

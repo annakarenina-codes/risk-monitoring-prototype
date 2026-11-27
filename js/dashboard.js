@@ -23,6 +23,7 @@
   function initScene() {
     if (view) return;
     try {
+      document.getElementById('scene').innerHTML = ''; // drop the "Loading" message
       view = RMS.scene3d.mount(document.getElementById('scene'), { padRight: 392, labels: labelsOn, names: namesOn, roofs: roofsOn });
       view.setSite(siteId);
     } catch (e) {
@@ -52,6 +53,17 @@
     labelsBtn.classList.toggle('on', labelsOn);
     view?.setLabels(labelsOn);
     try { localStorage.setItem('rms-monitor-labels', labelsOn ? 'on' : 'off'); } catch (e) { /* ignore */ }
+  };
+
+  // Legend: open or closed (remembered in this browser only).
+  const legendDock = document.getElementById('legend-dock');
+  let legendOpen = true;
+  try { legendOpen = localStorage.getItem('rms-monitor-legend') !== 'closed'; } catch (e) { /* ignore */ }
+  legendDock.classList.toggle('open', legendOpen);
+  document.getElementById('legend-toggle').onclick = () => {
+    legendOpen = !legendOpen;
+    legendDock.classList.toggle('open', legendOpen);
+    try { localStorage.setItem('rms-monitor-legend', legendOpen ? 'open' : 'closed'); } catch (e) { /* ignore */ }
   };
 
   // Names on the 3D labels (remembered in this browser only). Off = statuses only.

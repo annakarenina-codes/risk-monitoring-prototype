@@ -128,10 +128,11 @@ label.field { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color:
 .card-head .spacer { flex: 1; }
 .card-body { padding: 0 16px 16px; }
 
-.kpi { display: flex; gap: 12px; align-items: center; padding: 12px 16px; min-width: 150px; }
+.kpi { display: flex; gap: 10px; align-items: center; padding: 10px 14px; min-width: 128px; }
 .kpi-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-tint); color: var(--accent-ink); }
 .kpi small { display: block; font-size: 12px; }
-.kpi b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi-icon { flex: none; }
 .kpi.private .kpi-icon { background: var(--private-tint); color: var(--private-ink); }
 .kpi.warning .kpi-icon { background: var(--warning-bg); color: var(--warning); }
 .kpi.danger .kpi-icon { background: var(--danger-bg); color: var(--danger); }
@@ -196,7 +197,9 @@ a.row:hover, .row.clickable:hover { background: var(--hover); cursor: pointer; }
 /* ---------- live monitor (index.html): 3D site view with floating panels ---------- */
 .page-monitor #scene { position: fixed; inset: var(--topbar) 0 0 0; background: var(--ground); overflow: hidden; }
 #scene canvas { display: block; }
-.scene-fallback { display: grid; place-items: center; height: 100%; color: var(--muted); padding: 20px; text-align: center; }
+.scene-fallback { display: flex; align-items: center; justify-content: center; gap: 10px; height: 100%; color: var(--muted); padding: 20px; text-align: center; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-tint); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .overlay { position: fixed; z-index: 5; }
 .top-left { top: calc(var(--topbar) + 16px); left: 16px; display: flex; flex-direction: column; gap: 12px; max-width: calc(100% - 470px); }
 .kpis { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -227,8 +230,18 @@ a.row:hover, .row.clickable:hover { background: var(--hover); cursor: pointer; }
 .view-tools { top: calc(var(--topbar) + 16px); right: 392px; display: flex; flex-direction: column; gap: 6px; }
 .view-tools button { width: 36px; height: 36px; padding: 0; background: var(--panel); color: var(--ink); border: 0; box-shadow: var(--shadow); }
 .view-tools button.on { background: var(--accent); color: #fff; }
-.legend-dock { left: 16px; bottom: 16px; padding: 10px 14px; max-width: calc(100% - 470px); }
-.legend-dock .legend { margin-top: 0; }
+.tool-sep { height: 1px; margin: 2px 6px; background: var(--wall-shade); }
+.legend-dock { left: 16px; bottom: 16px; padding: 6px; max-width: min(560px, calc(100% - 470px)); }
+.legend-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.legend-toggle:hover { background: var(--hover); color: var(--ink); }
+.legend-toggle svg.lucide { width: 14px; height: 14px; }
+.legend-toggle .chev { margin-left: auto; transition: transform 0.2s; }
+.legend-dock.open .legend-toggle .chev { transform: rotate(180deg); }
+.legend-dock .legend { display: none; margin: 4px 8px 6px; gap: 8px 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.legend-dock.open .legend { display: grid; }
 
 /* labels floating in the 3D scene (they never block dragging the view) */
 .labels3d { position: absolute; top: 0; left: 0; pointer-events: none; }
@@ -242,6 +255,7 @@ a.row:hover, .row.clickable:hover { background: var(--hover); cursor: pointer; }
 .label3d.zone { background: transparent; box-shadow: none; color: var(--muted); }
 .label3d.zone-restricted { color: var(--danger); }
 .label3d.gate { background: var(--accent); color: #fff; }
+.label3d.building { background: var(--roof-shade); color: #fff; font-size: 12.5px; }
 .label3d.parking { background: var(--panel); color: var(--accent-ink); font-size: 11.5px; padding: 2px 8px; }
 .label3d.truck { font-size: 11.5px; }
 /* status chips in 3D labels, colored by tone */
@@ -306,8 +320,10 @@ a.row:hover, .row.clickable:hover { background: var(--hover); cursor: pointer; }
 
 /* floor plan SVG */
 svg.plan { width: 100%; height: auto; display: block; user-select: none; touch-action: none; }
+.plan-card svg.plan { max-height: calc(100vh - 250px); }
 svg.plan .yard { fill: var(--ground); stroke: var(--line); stroke-width: 0.3; }
 svg.plan .building { fill: var(--panel); stroke: var(--roof); stroke-width: 0.5; }
+svg.plan .building-label { font-size: 1.9px; font-weight: 700; fill: var(--roof-shade); pointer-events: none; }
 svg.plan .room { fill: var(--wall); }
 svg.plan .room-label { font-size: 1.9px; fill: var(--muted); font-weight: 600; }
 svg.plan .walls { pointer-events: none; }

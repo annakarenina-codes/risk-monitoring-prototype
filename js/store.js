@@ -35,6 +35,7 @@ window.RMS = window.RMS || {};
     if (s.version === 4) s = v4to5(s);
     if (s.version === 5) s = v5to6(s);
     if (s.version === 6) s = v6to7(s);
+    if (s.version === 7) s = v7to8(s);
     return s.version === RMS.SEED.version ? s : null; // anything else is too old: reset
   }
 
@@ -64,6 +65,34 @@ window.RMS = window.RMS || {};
    * are no longer tracked on the road. Rooms couldn't be edited in v3, so take the new
    * site layouts from the seed; keep zones, trips, events and phone positions.
    */
+  /**
+   * v7 -> v8: a site can have several buildings (the single `outline` becomes buildings[0]),
+   * and the new Logistics Hub site arrives with its people, forklifts and trips. Your own
+   * sites, zones, trips and edits are kept.
+   */
+  function v7to8(saved) {
+    const seed = structuredClone(RMS.SEED);
+    const has = (list, id) => list.some((x) => x.id === id);
+    const sites = saved.sites.map(({ outline, ...x }) => ({
+      ...x,
+      buildings: x.buildings || (outline ? [{ id: 'B1', name: x.name, ...outline }] : []),
+    }));
+    const added = seed.sites.filter((x) => !has(sites, x.id));
+    const newIds = new Set(added.map((x) => x.id));
+    const fromNew = (list) => list.filter((x) => newIds.has(x.siteId));
+    const newTrips = seed.trips.filter((t) => !has(saved.trips, t.id) && t.phases.some((ph) => newIds.has(ph.siteId)));
+    return {
+      ...saved,
+      version: 8,
+      sites: [...sites, ...added],
+      zones: [...saved.zones, ...fromNew(seed.zones).filter((z) => !has(saved.zones, z.id))],
+      people: [...saved.people, ...seed.people.filter((p) => !has(saved.people, p.id) && (newIds.has(p.siteId) || newTrips.some((t) => t.driverId === p.id)))],
+      assets: [...(saved.assets || []), ...fromNew(seed.assets).filter((a) => !has(saved.assets || [], a.id))],
+      trips: [...saved.trips, ...newTrips],
+      events: [...saved.events, ...seed.events.filter((e) => newTrips.some((t) => e.text.includes(t.id)))].sort((x, y) => y.t - x.t),
+    };
+  }
+
   /** v6 -> v7: sites gain roads and parking areas (empty: add them in Configure, or Reset for the example). */
   function v6to7(saved) {
     return { ...saved, version: 7, sites: saved.sites.map((x) => ({ roads: [], parking: [], ...x })) };

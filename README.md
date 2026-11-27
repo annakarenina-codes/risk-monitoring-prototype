@@ -1,7 +1,7 @@
 # Risk Management Monitoring System: prototype
 
 A clickable prototype in plain HTML, CSS and JavaScript (no framework, no build step).
-It tracks employees, visitors and drivers across two warehouses, hides people's location
+It tracks employees, visitors, drivers, forklifts and trucks across three sites, hides people's location
 inside private spaces, and runs the driver → guard approval flow.
 
 ## Run it
@@ -33,6 +33,17 @@ The 3D library (three.js), icons and font load from CDNs, so you need an interne
 7. **Configure**, **Zones** tab: click **Draw new zone**, click the corners, name it, pick **Private**. Anyone who walks
    into it is hidden from then on.
 8. **Reset** in the top bar puts everything back to the start.
+
+## Sites in the demo
+
+| Site | Size | What's there |
+|---|---|---|
+| WH-01 · Warehouse 1 (North Harbor) | 100 × 80 m | One building: storage hall, loading bays, office, comfort rooms, clinic, break room; guard post; unloading, loading and yard parking |
+| WH-02 · Warehouse 2 (Valenzuela) | 100 × 80 m | One building: cold and dry storage, unloading bays, office, comfort rooms; guard post; truck dock |
+| WH-03 · Logistics Hub (Calamba, Laguna) | 200 × 140 m | Five buildings: Warehouse A, Warehouse B, Cold storage, Admin building, Maintenance; guard house; a road network with Dock A (loading), Dock B (unloading) and the Cold dock; 3 forklifts |
+
+A site can have any number of buildings. Each is a floor slab and a roof in 3D; rooms outside every building
+get their own. Add, move, rotate, rename or remove buildings in Configure.
 
 ## Pages
 

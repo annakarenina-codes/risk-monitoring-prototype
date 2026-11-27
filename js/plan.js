@@ -8,8 +8,7 @@ window.RMS = window.RMS || {};
   const { esc, initials } = RMS.ui;
   const { geo } = RMS;
 
-  /** Ids used for the building outline and the gate wherever a room id is expected (selection). */
-  const BUILDING = '__building';
+  /** Id used for the gate wherever a room id is expected (selection). */
   const GATE = '__gate';
 
   const { centroid } = geo;
@@ -33,7 +32,7 @@ window.RMS = window.RMS || {};
   /**
    * Static layer: yard, building, rooms, walls, zones, gate.
    * opts.selectedZone / opts.zoneHandles: zone to highlight, with corner handles
-   * opts.selectedRoom / opts.roomHandles: room id (or BUILDING) to highlight, with corner handles
+   * opts.selectedRoom / opts.roomHandles: room id (or 'bldg:', 'road:', 'park:' id) to highlight, with corner handles
    * opts.draft + opts.cursor: points of a zone being drawn and the preview line end
    * opts.roomDraft: { x, y, w, h } of a room being drawn
    */
@@ -63,9 +62,10 @@ window.RMS = window.RMS || {};
       </g>`;
     }).join('');
 
-    const building = site.outline ? `
-      <rect class="building ${opts.selectedRoom === BUILDING ? 'selected' : ''}" data-room="${BUILDING}"
-        x="${site.outline.x}" y="${site.outline.y}" width="${site.outline.w}" height="${site.outline.h}" rx="0.4"/>` : '';
+    const building = (site.buildings || []).map((b) => `
+      <rect class="building ${picked(`bldg:${b.id}`)}" data-room="bldg:${esc(b.id)}"
+        x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="0.4"/>
+      <text class="building-label" x="${b.x + 1}" y="${b.y - 0.8}">${esc(b.name)}</text>`).join('');
 
     const rooms = site.rooms.map((r) => `
       <g class="room-g ${r.id === opts.selectedRoom ? 'selected' : ''}" data-room="${esc(r.id)}">
@@ -115,8 +115,7 @@ window.RMS = window.RMS || {};
     if (opts.roomHandles && opts.selectedRoom) {
       const id = opts.selectedRoom;
       const feature = (list, pre) => (site[list] || []).find((x) => `${pre}:${x.id}` === id);
-      const r = id === BUILDING ? site.outline
-        : feature('roads', 'road') || feature('parking', 'park') || site.rooms.find((x) => x.id === id);
+      const r = feature('buildings', 'bldg') || feature('roads', 'road') || feature('parking', 'park') || site.rooms.find((x) => x.id === id);
       if (r) handles = corners(r).map((p, i) => `<circle class="handle rhandle" data-corner="${i}" cx="${p[0]}" cy="${p[1]}" r="1.1"/>`).join('');
     }
 
@@ -165,5 +164,5 @@ window.RMS = window.RMS || {};
     return [Math.max(0, Math.min(w, Math.round(pt.x))), Math.max(0, Math.min(d, Math.round(pt.y)))];
   }
 
-  RMS.plan = { BUILDING, GATE, base, people, toPlan, centroid, corners, viewBox };
+  RMS.plan = { GATE, base, people, toPlan, centroid, corners, viewBox };
 })();

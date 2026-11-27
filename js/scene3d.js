@@ -116,6 +116,7 @@ function mount(container, opts = {}) {
   let goal = null; // camera easing target { pos, target }
   let zoneFx = {}; // per zone, for live effects: private → count chip, restricted → materials to pulse
   let floorAt = () => 0.06; // floor height at a plan point, set by build()
+  let structLabels = []; // room, zone, gate and parking labels, for decluttering
   let picks = []; // clickable structure objects (userData.pick = { kind, id })
   let boxes = {}; // 'kind:id' → { x0, z0, x1, z1, y } footprint, for selection brackets and the camera
   let selection = null; // this site's part of RMS.ui.selection
@@ -198,7 +199,7 @@ function mount(container, opts = {}) {
       boxes[`parking:${pk.id}`] = { x0: pk.x, x1: pk.x + pk.w, z0: pk.y, z1: pk.y + pk.h, y: 0.1 };
     });
 
-    // Building slab, plus a slab under any room that sits outside the building (a guard hut).
+    // A slab under each building, plus one under any room that's in no building (a guard hut).
     const slabMat = material(T.wall);
     const addSlab = (r) => {
       const m = new THREE.Mesh(new RoundedBoxGeometry(r.w + WALL_T, SLAB, r.h + WALL_T, 2, 0.1), slabMat);
@@ -207,13 +208,11 @@ function mount(container, opts = {}) {
       m.castShadow = true;
       group.add(m);
     };
-    const o = site.outline;
-    if (o) addSlab(o);
-    site.rooms.forEach((r) => {
-      const inside = o && r.x >= o.x && r.y >= o.y && r.x + r.w <= o.x + o.w && r.y + r.h <= o.y + o.h;
-      if (!inside) addSlab(r);
-    });
-    // Roofs: over the building, and over any hut outside it. Shown or hidden with setRoofs().
+    const buildings = site.buildings || [];
+    const inBuilding = (r) => buildings.some((o) => r.x >= o.x && r.y >= o.y && r.x + r.w <= o.x + o.w && r.y + r.h <= o.y + o.h);
+    buildings.forEach(addSlab);
+    site.rooms.forEach((r) => { if (!inBuilding(r)) addSlab(r); });
+    // Roofs: over each building, and over any hut outside them. Shown or hidden with setRoofs().
     roofGroup = new THREE.Group();
     roofGroup.visible = roofsOn;
     const roofMat = material(T.roof);
@@ -228,19 +227,24 @@ function mount(container, opts = {}) {
       top.castShadow = true;
       roofGroup.add(edge, top);
     };
-    if (o) addRoof(o);
-    site.rooms.forEach((r) => {
-      const inside = o && r.x >= o.x && r.y >= o.y && r.x + r.w <= o.x + o.w && r.y + r.h <= o.y + o.h;
-      if (!inside) addRoof(r);
-    });
+    buildings.forEach(addRoof);
+    site.rooms.forEach((r) => { if (!inBuilding(r)) addRoof(r); });
     group.add(roofGroup);
+    // With several buildings, name each one above its roof line.
+    if (buildings.length > 1) {
+      buildings.forEach((b) => {
+        const l = label(b.name, 'building');
+        l.position.set(b.x + b.w / 2, SLAB + H + 3.2, b.y + 6);
+        group.add(l);
+      });
+    }
 
     site.rooms.forEach((r) => {
       floorPick([[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]], SLAB + 0.01, 'room', r.id);
       boxes[`room:${r.id}`] = { x0: r.x, z0: r.y, x1: r.x + r.w, z1: r.y + r.h, y: SLAB };
     });
     const onSlab = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-    floorAt = (x, y) => ((o && onSlab(x, y, o)) || site.rooms.some((r) => onSlab(x, y, r)) ? SLAB : 0.06);
+    floorAt = (x, y) => (buildings.some((o) => onSlab(x, y, o)) || site.rooms.some((r) => onSlab(x, y, r)) ? SLAB : 0.06);
 
     // Walls with door gaps (shared walls once), each with a teal strip on top.
     // Horizontal walls run a little past their ends to close the corners; vertical walls stop
@@ -367,6 +371,14 @@ function mount(container, opts = {}) {
     }
 
     scene.add(group);
+    structLabels = [];
+    group.traverse((o) => {
+      if (!o.isCSS2DObject) return;
+      // Restricted zones are safety information, so they win over ordinary room names.
+      const cl = o.element.classList;
+      o.userData.pri = cl.contains('gate') ? 650 : cl.contains('building') ? 645 : cl.contains('zone-restricted') || o.element.querySelector('.restricted') ? 640 : 600;
+      structLabels.push(o);
+    });
 
     // Sun and shadow area follow the site.
     const r = Math.max(w, d);
@@ -498,6 +510,7 @@ function mount(container, opts = {}) {
         }
       }
       a.tag.visible = hoverId === r.id || picked || (labelsOn && !ghost);
+      a.tag.userData.pri = hoverId === r.id || picked ? 1000 : r.alert ? 900 : 400;
       // With names off the label shows only the status; hovering or selecting brings the name back.
       const nameEl = a.tag.element.firstChild;
       const showName = namesOn || hoverId === r.id || picked || !a.chip;
@@ -580,7 +593,7 @@ function mount(container, opts = {}) {
         g.position.set(tr.x, 0, tr.y);
         g.rotation.y = want;
         truckGroup.add(g);
-        t = { group: g, sel, nameEl: tag.element.firstChild, chip: tag.element.lastChild, key: '' };
+        t = { group: g, sel, tag, nameEl: tag.element.firstChild, chip: tag.element.lastChild, key: '' };
         trucks.set(tr.id, t);
       }
       t.group.position.set(tr.x, 0, tr.y);
@@ -594,6 +607,7 @@ function mount(container, opts = {}) {
         t.chip.className = `chip st tone-${tr.status.tone}`;
       }
       t.sel.visible = selection?.kind === 'truck' && selection.id === tr.id;
+      t.tag.userData.pri = t.sel.visible ? 1000 : tr.state === 'waiting' ? 800 : 700;
       // The plate always; the driver's name only with names on (or when selected).
       const plate = tr.trip.vehicle.replace(/^Truck\s*/i, '');
       const nm = namesOn || t.sel.visible ? `${plate} · ${tr.driver?.name || 'no driver'}` : plate;
@@ -714,6 +728,7 @@ function mount(container, opts = {}) {
         || (selection?.kind === 'person' && f.opId === selection.id);
       f.sel.visible = picked;
       f.tag.visible = labelsOn || picked || hoverEquip === e.id;
+      f.tag.userData.pri = picked || hoverEquip === e.id ? 1000 : 500;
       // The forklift id always; the operator's name only with names on (or on hover / select).
       const withName = namesOn || picked || hoverEquip === e.id;
       const nm = !withName ? e.id : `${e.id} · ${e.operator ? e.operator.name : 'no operator'}`;
@@ -812,6 +827,44 @@ function mount(container, opts = {}) {
     applySelection(true);
   });
 
+  /* ---------- labels: keep the important ones readable ---------- */
+
+  const _v = new THREE.Vector3();
+
+  /**
+   * Where labels would overlap on screen, hide the less important one. Order: selected or
+   * hovered, alerts, trucks, the gate, room / zone / parking names, forklifts, people.
+   * Zooming in spreads them out, so more come back.
+   */
+  function declutter() {
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    structLabels.forEach((l) => { l.visible = true; });
+    const cands = [];
+    const add = (obj, pri) => { if (obj.visible) cands.push({ obj, pri }); };
+    structLabels.forEach((l) => add(l, l.userData.pri));
+    trucks.forEach((t) => add(t.tag, t.tag.userData.pri || 700));
+    forklifts.forEach((f) => add(f.tag, f.tag.userData.pri || 500));
+    avatars.forEach((a) => add(a.tag, a.tag.userData.pri || 400));
+    cands.sort((a, b) => b.pri - a.pri);
+    camera.updateMatrixWorld();
+    const placed = [];
+    for (const c of cands) {
+      c.obj.getWorldPosition(_v).project(camera);
+      if (_v.z > 1) continue;
+      const x = ((_v.x + 1) / 2) * W;
+      const y = ((1 - _v.y) / 2) * H;
+      const text = [...c.obj.element.children].filter((e) => e.style.display !== 'none').map((e) => e.textContent).join(' ');
+      const w = text.length * 6.4 + 34;
+      const r = [x - w / 2, y - 11, x + w / 2, y + 11];
+      if (c.pri < 1000 && placed.some((p) => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1])) {
+        c.obj.visible = false;
+        continue;
+      }
+      placed.push(r);
+    }
+  }
+
   /* ---------- camera ---------- */
 
   /** A light isometric-ish view of the whole site. */
@@ -854,6 +907,7 @@ function mount(container, opts = {}) {
       if (camera.position.distanceTo(goal.pos) < 0.05 && controls.target.distanceTo(goal.target) < 0.05) goal = null;
     }
     controls.update();
+    declutter();
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
   });
